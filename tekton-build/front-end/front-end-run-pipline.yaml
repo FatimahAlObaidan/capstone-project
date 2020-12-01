@@ -1,0 +1,112 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: front-end-pipeline
+spec:
+  workspaces:
+  - name: shared-workspace
+  params:
+  - name: image
+    description: reference of the image to build
+  - name: test-namespace
+    description:  namespace
+  - name: prod-namespace
+    description: prod namespace
+  tasks:
+  - name: fetch-repository
+    taskRef:
+      name: git-clone
+    workspaces:
+    - name: output
+      workspace: shared-workspace
+    params:
+    - name: url
+      value: https://github.com/FatimahAlObaidan/project3-final.git
+    - name: subdirectory
+      value: ""
+    - name: deleteExisting
+      value: "true"
+  - name: front-end-task
+    taskRef:
+      name: front-end-task
+    runAfter:
+    - fetch-repository
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    params:
+    - name: IMAGE
+      value: $(params.image)
+    - name: EXTRA_ARGS
+      value: "--skip-tls-verify"
+  - name: front-end-test-deploy-task
+    taskRef:
+      name: front-end-deploy-task
+    runAfter:
+    - front-end-task
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    params:
+    - name: namespace
+      value: $(params.test-namespace)
+  - name: test-task
+    taskRef:
+      name: test-task
+    runAfter:
+    - front-end-test-deploy-task
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    params:
+    - name: namespace
+      value: $(params.test-namespace)
+  - name: front-end-prod
+    taskRef:
+      name: front-end-deploy-task
+    runAfter:
+    - test-task
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    params:
+    - name: namespace
+      value: $(params.prod-namespace)
+  - name: verify-digest
+    runAfter:
+    - front-end-task
+    params:
+    - name: digest
+      value: $(tasks.front-end-task.results.IMAGE-DIGEST)
+    taskSpec:
+      params:
+      - name: digest
+      steps:
+      - name: bash
+        image: ubuntu
+        script: |
+          echo $(params.digest)
+          case .$(params.digest) in
+            ".sha"*) exit 0 ;;
+            *)       echo "Digest value is not correct" && exit 1 ;;
+          esac
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: front-end-pipeline-run
+spec:
+  serviceAccountName: fatimah-sac
+  pipelineRef:
+    name: front-end-pipeline
+  params:
+  - name: image
+    value: fatimahobaidan1/front-end
+  - name: test-namespace
+    value: test
+  - name: prod-namespace
+    value: prod
+  workspaces:
+  - name: shared-workspace
+    persistentvolumeclaim:
+      claimName: project-source-pvc

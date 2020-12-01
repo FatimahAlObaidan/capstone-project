@@ -1,0 +1,20 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: cart-deploy-task
+spec:
+  params:
+  - name: namespace
+    description: name to namespace for depolyment
+  workspaces:
+  - name: source
+# Fainal proejct
+  steps:
+    - name: kubectl-db
+      image: "bitnami/kubectl"
+      command: ["kubectl"]
+      args: ["apply", "-f", "source/tekton-build/deploy/cart-db-deploy.yaml", "-n","$(params.namespace)" ]
+    - name: kubectl
+      image: "bitnami/kubectl"
+      command: ["kubectl"]
+      args: ["apply", "-f", "source/tekton-build/deploy/cart-deploy.yaml","-n", "$(params.namespace)"]

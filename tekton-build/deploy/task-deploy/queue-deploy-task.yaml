@@ -1,0 +1,16 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: queue-deploy-task
+spec:
+  params:
+  - name: namespace
+    description: namespace
+  workspaces:
+  - name: source
+  # Step to create Knative Service from YAML file using kubectl.
+  steps:
+    - name: kubectl
+      image: "bitnami/kubectl"
+      command: ["kubectl"]
+      args: ["apply", "-f", "source/tekton-build/deploy/queue-deploy.yaml", "-n", "$(params.namespace)"]

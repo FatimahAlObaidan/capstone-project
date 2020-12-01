@@ -1,0 +1,72 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: one-deploy
+spec:
+  params:
+  - name: namespace
+    description: namespace
+  workspaces:
+  - name: source  
+  steps:
+# to create Knative Service from YAML file using kubectl.
+    - name: kubectl-front-end
+      image: "bitnami/kubectl"
+      command: ["kubectl"]
+      args: ["apply", "-f", "source/tekton-build/deploy/front-end-deploy.yaml", "-n","$(params.namespace)" ]
+      
+    - name: kubectl-db-cart
+      image: "bitnami/kubectl"
+      command: ["kubectl"]
+      args: ["apply", "-f", "source/tekton-build/deploy/cart-db-deploy.yaml", "-n","$(params.namespace)" ]
+            
+    - name: kubectl-cata
+      image: "bitnami/kubectl"
+      command: ["kubectl"]
+      args: ["apply", "-f", "source/tekton-build/deploy/catalogue-deploy.yaml", "-n","$(params.namespace)" ]
+
+    - name: kubectl-db-cata
+      image: "bitnami/kubectl"
+      command: ["kubectl"]
+      args: ["apply", "-f", "source/tekton-build/deploy/catalogue-db-deploy.yaml", "-n","$(params.namespace)" ]
+
+    - name: kubectl-cat
+      image: "bitnami/kubectl"
+      command: ["kubectl"]
+      args: ["apply", "-f", "source/tekton-build/deploy/cart-deploy.yaml", "-n","$(params.namespace)" ]
+
+    - name: kubectl-db-order
+      image: "bitnami/kubectl"
+      command: ["kubectl"]
+      args: ["apply", "-f", "source/tekton-build/deploy/order-db-deploy.yaml", "-n","$(params.namespace)" ]
+
+    - name: kubectl-order
+      image: "bitnami/kubectl"
+      command: ["kubectl"]
+      args: ["apply", "-f", "source/tekton-build/deploy/oder-deploy.yaml", "-n","$(params.namespace)" ]
+      
+    - name: kubectl-shipping
+      image: "bitnami/kubectl"
+      command: ["kubectl"]
+      args: ["apply", "-f", "source/tekton-build/deploy/shipping-deploy.yaml", "-n","$(params.namespace)" ]
+
+    - name: kubectl-queue
+      image: "bitnami/kubectl"
+      command: ["kubectl"]
+      args: ["apply", "-f", "source/tekton-build/deploy/queue-deploy.yaml", "-n","$(params.namespace)" ]
+      
+    - name: kubectl-payment
+      image: "bitnami/kubectl"
+      command: ["kubectl"]
+      args: ["apply", "-f", "source/tekton-build/deploy/payment-deploy.yaml", "-n","$(params.namespace)" ]
+
+    - name: kubectl-db-user
+      image: "bitnami/kubectl"
+      command: ["kubectl"]
+      args: ["apply", "-f", "source/tekton-build/deploy/user-db-deploy.yaml", "-n","$(params.namespace)" ]
+
+    - name: kubectl-user
+      image: "bitnami/kubectl"
+      command: ["kubectl"]
+      args: ["apply", "-f", "source/tekton-build/deploy/user-deploy.yaml", "-n","$(params.namespace)" ]
+

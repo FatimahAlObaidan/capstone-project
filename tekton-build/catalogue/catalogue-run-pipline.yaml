@@ -1,0 +1,112 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: catalogue-pipeline
+spec:
+  workspaces:
+  - name: shared-workspace
+  params:
+  - name: image
+    description: reference of the image to build
+  - name: db-image
+  - name: test-namespace
+  tasks:
+  - name: fetch-repository
+    taskRef:
+      name: git-clone
+    workspaces:
+    - name: output
+      workspace: shared-workspace
+    params:
+    - name: url
+      value: https://github.com/FatimahAlObaidan/project3-final.git 
+    - name: subdirectory
+      value: ""
+    - name: deleteExisting
+      value: "true"
+  - name: catalogue1-task
+    taskRef:
+      name: catalogue1-task
+    runAfter:
+    - fetch-repository
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    params:
+    - name: IMAGE
+      value: $(params.image)
+    - name: EXTRA_ARGS
+      value: "--skip-tls-verify"
+  - name: catalogue1-db-task
+    taskRef:
+      name: catalogue1-db-task
+    runAfter:
+    - catalogue1-task
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    params:
+    - name: IMAGE
+      value: $(params.db-image)
+    - name: EXTRA_ARGS
+      value: "--skip-tls-verify"
+  - name: catalogue-deployte-task
+    taskRef:
+      name: catalogue-deploy-task
+    runAfter:
+    - catalogue1-db-task
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    params:
+    - name: namespace
+      value: $(params.test-namespace)
+  - name: test-task
+    taskRef:
+      name: test-task
+    runAfter:
+    - catalogue-deployte-task
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    params:
+    - name: namespace
+      value: $(params.test-namespace)
+  - name: verify-digest
+    runAfter:
+    - catalogue1-task
+    params:
+    - name: digest
+      value: $(tasks.catalogue1-task.results.IMAGE-DIGEST)
+    taskSpec:
+      params:
+      - name: digest
+      steps:
+      - name: bash
+        image: ubuntu
+        script: |
+          echo $(params.digest)
+          case .$(params.digest) in
+            ".sha"*) exit 0 ;;
+            *)       echo "Digest value is not correct" && exit 1 ;;
+          esac
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: catalogue-pipeline-run
+spec:
+  serviceAccountName: fatimah-sac
+  pipelineRef:
+    name: catalogue-pipeline
+  params:
+  - name: image
+    value: fatimahobaidan1/catalogue
+  - name: db-image
+    value: fatimahobaidan1/catalogue-db
+  - name: test-namespace
+    value: test
+  workspaces:
+  - name: shared-workspace
+    persistentvolumeclaim:
+      claimName: project-source-pvc

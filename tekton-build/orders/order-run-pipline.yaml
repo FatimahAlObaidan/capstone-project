@@ -1,0 +1,112 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: order-pipeline
+spec:
+  workspaces:
+  - name: shared-workspace
+  params:
+  - name: image
+    description: reference of the image to build
+  - name: test-namespace
+    description:  namespace
+  - name: prod-namespace
+    description: prod namespace
+  tasks:
+  - name: fetch-repository
+    taskRef:
+      name: git-clone
+    workspaces:
+    - name: output
+      workspace: shared-workspace
+    params:
+    - name: url
+      value: https://github.com/FatimahAlObaidan/project3-final.git
+    - name: subdirectory
+      value: ""
+    - name: deleteExisting
+      value: "true"
+  - name: order-task
+    taskRef:
+      name: order-task
+    runAfter:
+    - fetch-repository
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    params:
+    - name: IMAGE
+      value: $(params.image)
+    - name: EXTRA_ARGS
+      value: "--skip-tls-verify"
+  - name: order-deployte-task
+    taskRef:
+      name: order-deploy-task
+    runAfter:
+    - order-task
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    params:
+    - name: namespace
+      value: $(params.test-namespace)
+  - name: test-task
+    taskRef:
+      name: test-task
+    runAfter:
+    - order-deployte-task
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    params:
+    - name: namespace
+      value: $(params.test-namespace)
+  - name: order-prod
+    taskRef:
+      name: order-deploy-task
+    runAfter:
+    - test-task
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    params:
+    - name: namespace
+      value: $(params.prod-namespace)
+  - name: verify-digest
+    runAfter:
+    - order-task
+    params:
+    - name: digest
+      value: $(tasks.order-task.results.IMAGE-DIGEST)
+    taskSpec:
+      params:
+      - name: digest
+      steps:
+      - name: bash
+        image: ubuntu
+        script: |
+          echo $(params.digest)
+          case .$(params.digest) in
+            ".sha"*) exit 0 ;;
+            *)       echo "Digest value is not correct" && exit 1 ;;
+          esac
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: order-pipeline-run
+spec:
+  serviceAccountName: fatimah-sac
+  pipelineRef:
+    name: order-pipeline
+  params:
+  - name: image
+    value: fatimahobaidan1/order
+  - name: test-namespace
+    value: test
+  - name: prod-namespace
+    value: prod
+  workspaces:
+  - name: shared-workspace
+    persistentvolumeclaim:
+      claimName: project-source-pvc

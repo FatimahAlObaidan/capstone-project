@@ -1,0 +1,19 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: order-deploy-task
+spec:
+  params:
+  - name: namespace
+    description: namespace
+  workspaces:
+# Fainal proejct
+  steps:
+    - name: kubectl-db
+      image: "bitnami/kubectl"
+      command: ["kubectl"]
+      args: ["apply", "-f", "source/tekton-build/deploy/order-db-deploy.yaml", "-n", "$(params.namespace)"]
+    - name: kubectl
+      image: "bitnami/kubectl"
+      command: ["kubectl"]
+      args: ["apply", "-f", "source/tekton-build/deploy/order-deploy.yaml","-n", "$(params.namespace)"]

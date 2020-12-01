@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fatimah-sac
+secrets:
+  - name: docker-creds
+  - name: git-user-pass

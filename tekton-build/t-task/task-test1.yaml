@@ -1,0 +1,30 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: test-task
+spec:
+  params:
+  - name: namespace
+    #description: name to namespace for depolyment
+  workspaces:
+  - name: source
+  steps:
+#    - name: task-runner
+ #     image: fatimahobaidan1/test
+  #    workingDir: /tests/
+   #   command: ["/bin/sh"]
+    #  args:
+     #   - "-c"
+      #  - "/tests/runner.sh"
+       # - "$(params.namespace)"
+    - name: run-test
+      image: fatimahobaidan1/test
+      workingDir: /tests/
+      script: |
+          #!/bin/sh
+          pwd
+          chmod +x /tests/runner.sh
+          source /tests/runner.sh
+#      command: ["/bin/bash", "-c"]
+#      args: ["./e2e-js-test/runner.sh"]
+

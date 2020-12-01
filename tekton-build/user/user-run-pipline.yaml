@@ -1,0 +1,112 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: user-pipeline
+spec:
+  workspaces:
+  - name: shared-workspace
+  params:
+  - name: image
+    description: reference of the image to build
+  - name: user-db-image
+  - name: test-namespace
+  tasks:
+  - name: fetch-repository
+    taskRef:
+      name: git-clone
+    workspaces:
+    - name: output
+      workspace: shared-workspace
+    params:
+    - name: url
+      value: https://github.com/FatimahAlObaidan/project3-final.git
+    - name: subdirectory
+      value: ""
+    - name: deleteExisting
+      value: "true"
+  - name: user-task
+    taskRef:
+      name: user-task
+    runAfter:
+    - fetch-repository
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    params:
+    - name: IMAGE
+      value: $(params.image)
+    - name: EXTRA_ARGS
+      value: "--skip-tls-verify"
+  - name: user-db-task
+    taskRef:
+      name: user-db-task
+    runAfter:
+    - user-task
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    params:
+    - name: IMAGE
+      value: $(params.user-db-image)
+    - name: EXTRA_ARGS
+      value: "--skip-tls-verify"
+  - name: user-deployte-task
+    taskRef:
+      name: user-deploy-task
+    runAfter:
+    - user-db-task
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    params:
+    - name: namespace
+      value: $(params.test-namespace)
+  - name: test-task
+    taskRef:
+      name: test-task
+    runAfter:
+    - user-deployte-task
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+    params:
+    - name: namespace
+      value: $(params.test-namespace)
+  - name: verify-digest
+    runAfter:
+    - user-task
+    params:
+    - name: digest
+      value: $(tasks.user-task.results.IMAGE-DIGEST)
+    taskSpec:
+      params:
+      - name: digest
+      steps:
+      - name: bash
+        image: ubuntu
+        script: |
+          echo $(params.digest)
+          case .$(params.digest) in
+            ".sha"*) exit 0 ;;
+            *)       echo "Digest value is not correct" && exit 1 ;;
+          esac
+---
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  name: user-pipeline-run
+spec:
+  serviceAccountName: fatimah-sac
+  pipelineRef:
+    name: user-pipeline
+  params:
+  - name: image
+    value: fatimahobaidan1/user
+  - name: user-db-image
+    value: fatimahobaidan1/user-db
+  - name: test-namespace
+    value: test
+  workspaces:
+  - name: shared-workspace
+    persistentvolumeclaim:
+      claimName: project-source-pvc
